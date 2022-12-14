@@ -83,7 +83,7 @@ To try it out you can build the module locally and import it.
 It requires the dotnet sdk to be available on the PATH.
 
 ```powershell
-pwsh.exe -File build.ps1 -Configuration Debug -Task Build
+pwsh -File build.ps1 -Configuration Debug -Task Build
 Import-Module -Name ./output/PSGhost
 Enable-PSGhost
 ```
