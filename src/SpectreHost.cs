@@ -260,10 +260,16 @@ internal sealed class SpectreProgress : IDisposable
 
     public bool UpdateProgress(Int64 sourceId, ProgressRecord record)
     {
+        StringBuilder description = new(record.Activity);
+        if (!string.IsNullOrEmpty(record.StatusDescription))
+        {
+            description.AppendFormat(" - {0}", record.StatusDescription);
+        }
+
         ProgressTask spectreTask;
         if (!_runningTasks.ContainsKey(sourceId))
         {
-            spectreTask = _context.AddTask(record.Activity, autoStart: false);
+            spectreTask = _context.AddTask(description.ToString(), autoStart: false);
             _runningTasks[sourceId] = spectreTask;
 
             if (record.PercentComplete == -1)
@@ -280,12 +286,9 @@ internal sealed class SpectreProgress : IDisposable
 
         if (!spectreTask.IsIndeterminate && record.PercentComplete != -1)
         {
-            spectreTask.Increment(spectreTask.Value - record.PercentComplete);
+            spectreTask.Increment(record.PercentComplete - spectreTask.Value);
         }
-        if (!string.IsNullOrWhiteSpace(record.StatusDescription))
-        {
-            spectreTask.Description(record.StatusDescription);
-        }
+        spectreTask.Description(description.ToString());
 
         if (record.RecordType == ProgressRecordType.Completed)
         {

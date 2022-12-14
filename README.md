@@ -2,10 +2,10 @@
 
 [![Test workflow](https://github.com/jborean93/PSGhost/workflows/Test%20PSGhost/badge.svg)](https://github.com/jborean93/PSGhost/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/jborean93/PSGhost/branch/main/graph/badge.svg?token=b51IOhpLfQ)](https://codecov.io/gh/jborean93/PSGhost)
-[![PowerShell Gallery](https://img.shields.io/powershellgallery/dt/PSGhost.svg)](https://www.powershellgallery.com/packages/PSGhost)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jborean93/PSGhost/blob/main/LICENSE)
 
 Enable a PowerShell host implementation that uses [Spectre.Console](https://spectreconsole.net/) for host methods like progress updates and choice selection.
+This is a Proof of Concept module to see what is needed to utilise `Spectre.Console` in PowerShell.
 
 See [about_PSGhost](docs/en-US/about_PSGhost.md) for more details.
 
@@ -17,17 +17,14 @@ These cmdlets have the following requirements
 
 ## Installing
 
-The easiest way to install this module is through
-[PowerShellGet](https://docs.microsoft.com/en-us/powershell/gallery/overview).
-
-You can install this module by running;
+This module is meant to be a proof of concept and is not published to the PSGallery.
+To try it out you can build the module locally and import it.
+It requires the dotnet sdk to be available on the PATH.
 
 ```powershell
-# Install for only the current user
-Install-Module -Name PSGhost -Scope CurrentUser
-
-# Install for all users
-Install-Module -Name PSGhost -Scope AllUsers
+pwsh.exe -File build.ps1 -Configuration Debug -Task Build
+Import-Module -Name ./output/PSGhost
+Enable-PSGhost
 ```
 
 ## Contributing
