@@ -1,17 +1,24 @@
 using System.Management.Automation;
 using System.Management.Automation.Host;
+using System.Collections.ObjectModel;
 using System.Reflection;
 
 namespace PSGhost.Commands;
 
-internal static class HostState
+public static class HostState
 {
+    internal const string PromptFuncName = "function:prompt";
+
     private static MethodInfo? _setHostRefMethod;
     private static PropertyInfo? _externalHostProperty;
+    internal static ScriptBlock? _originalPromptFunc = null;
 
-    public static PSHost? OriginalHost { get; set; }
+    internal static ScriptBlock PromptFunc = ScriptBlock.Create("[PSGhost.Commands.HostState]::Prompt()");
 
-    public static PSHost? GetExternalHost(PSHost host)
+    internal static PSHost? OriginalHost { get; set; }
+    internal static SpectreHost? NewHost { get; set; }
+
+    internal static PSHost? GetExternalHost(PSHost host)
     {
         if (_externalHostProperty == null)
         {
@@ -23,7 +30,7 @@ internal static class HostState
         return (PSHost?)_externalHostProperty?.GetValue(host);
     }
 
-    public static void SetExternalHost(PSHost originalHost, PSHost newHost)
+    internal static void SetExternalHost(PSHost originalHost, PSHost newHost)
     {
         if (_setHostRefMethod == null)
         {
@@ -34,6 +41,16 @@ internal static class HostState
 
         _setHostRefMethod.Invoke(originalHost, new[] { newHost });
     }
+
+    public static Collection<PSObject> Prompt()
+    {
+        // Hack to cancel the progress display when pwsh clears the repl
+        NewHost?._userInterface?.CancelProgressOutput();
+
+        PowerShell ps = PowerShell.Create(RunspaceMode.CurrentRunspace);
+        ps.AddScript(_originalPromptFunc?.ToString() ?? "");
+        return ps.Invoke();
+    }
 }
 
 [Cmdlet(VerbsLifecycle.Enable, "PSGhost")]
@@ -41,6 +58,11 @@ public sealed class EnablePSGhost : PSCmdlet
 {
     protected override void EndProcessing()
     {
+        if (HostState.NewHost != null)
+        {
+            return;
+        }
+
         PSHost? externalHost = HostState.GetExternalHost(Host);
         if (externalHost == null)
         {
@@ -53,8 +75,14 @@ public sealed class EnablePSGhost : PSCmdlet
             return;
         }
 
-        HostState.OriginalHost = externalHost;
         SpectreHost newHost = new(externalHost);
+
+        HostState.NewHost = newHost;
+        HostState.OriginalHost = externalHost;
+
+        PSObject promptFunc = (PSObject)InvokeProvider.Item.Get(HostState.PromptFuncName)[0];
+        HostState._originalPromptFunc = ((FunctionInfo)promptFunc.BaseObject).ScriptBlock;
+        InvokeProvider.Item.Set(HostState.PromptFuncName, HostState.PromptFunc);
 
         HostState.SetExternalHost(Host, newHost);
     }
@@ -67,6 +95,9 @@ public sealed class DisablePSGhost : PSCmdlet
     {
         if (HostState.OriginalHost != null)
         {
+            InvokeProvider.Item.Set(HostState.PromptFuncName, HostState._originalPromptFunc);
+            HostState._originalPromptFunc = null;
+
             HostState.SetExternalHost(Host, HostState.OriginalHost);
             HostState.OriginalHost = null;
         }

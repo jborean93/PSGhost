@@ -17,7 +17,7 @@ namespace PSGhost;
 public class SpectreHost : PSHost, IHostSupportsInteractiveSession
 {
     private readonly PSHost _pwshHost;
-    private readonly PSHostUserInterface? _userInterface;
+    internal readonly SpectreHostUserInterface? _userInterface;
     private readonly IHostSupportsInteractiveSession _pwshInteractive;
 
     public SpectreHost(PSHost innerHost)
@@ -91,7 +91,9 @@ public class SpectreHostUserInterface : PSHostUserInterface, IHostUISupportsMult
 
         public string ChoiceString()
         {
-            StringBuilder str = new(Description.Label);
+            // PowerShell uses & before a char to denote a shorthand option,
+            // that isn't used for this setup.
+            StringBuilder str = new(Description.Label.Replace("&", null));
             if (!string.IsNullOrWhiteSpace(Description.HelpMessage))
             {
                 str.Append($" - {Description.HelpMessage}");
@@ -220,7 +222,7 @@ public class SpectreHostUserInterface : PSHostUserInterface, IHostUISupportsMult
             _progressHandler = new(_console);
         }
 
-        if (_progressHandler.UpdateProgress(sourceId, record))
+        if (_progressHandler.UpdateProgress(record))
         {
             _progressHandler.Dispose();
             _progressHandler = null;
@@ -230,8 +232,14 @@ public class SpectreHostUserInterface : PSHostUserInterface, IHostUISupportsMult
     public override void WriteVerboseLine(string message) => _pwshUI.WriteVerboseLine(message);
 
     public override void WriteWarningLine(string message) => _pwshUI.WriteWarningLine(message);
-}
 
+    internal void CancelProgressOutput()
+    {
+        _progressHandler?.Cancel();
+        _progressHandler?.Dispose();
+        _progressHandler = null;
+    }
+}
 
 internal sealed class SpectreProgress : IDisposable
 {
@@ -247,6 +255,14 @@ internal sealed class SpectreProgress : IDisposable
 
         _progressTask = Task.Run(() => console.Progress()
             .AutoClear(true)
+            .Columns(new ProgressColumn[]
+            {
+                new TaskDescriptionColumn(),
+                new ProgressBarColumn(),
+                new PercentageColumn(),
+                new RemainingTimeColumn(),
+                new SpinnerColumn()
+            })
             .StartAsync(async ctx =>
             {
                 context = ctx;
@@ -258,7 +274,7 @@ internal sealed class SpectreProgress : IDisposable
         _context = context!;
     }
 
-    public bool UpdateProgress(Int64 sourceId, ProgressRecord record)
+    public bool UpdateProgress(ProgressRecord record)
     {
         StringBuilder description = new(record.Activity);
         if (!string.IsNullOrEmpty(record.StatusDescription))
@@ -267,10 +283,10 @@ internal sealed class SpectreProgress : IDisposable
         }
 
         ProgressTask spectreTask;
-        if (!_runningTasks.ContainsKey(sourceId))
+        if (!_runningTasks.ContainsKey(record.ActivityId))
         {
             spectreTask = _context.AddTask(description.ToString(), autoStart: false);
-            _runningTasks[sourceId] = spectreTask;
+            _runningTasks[record.ActivityId] = spectreTask;
 
             if (record.PercentComplete == -1)
             {
@@ -281,7 +297,7 @@ internal sealed class SpectreProgress : IDisposable
         }
         else
         {
-            spectreTask = _runningTasks[sourceId];
+            spectreTask = _runningTasks[record.ActivityId];
         }
 
         if (!spectreTask.IsIndeterminate && record.PercentComplete != -1)
@@ -292,7 +308,8 @@ internal sealed class SpectreProgress : IDisposable
 
         if (record.RecordType == ProgressRecordType.Completed)
         {
-            _runningTasks.Remove(sourceId);
+            spectreTask.StopTask();
+            _runningTasks.Remove(record.ActivityId);
         }
 
         if (_runningTasks.Count == 0)
@@ -305,6 +322,16 @@ internal sealed class SpectreProgress : IDisposable
         {
             return false;
         }
+    }
+
+    public void Cancel()
+    {
+        foreach (ProgressTask spectreTask in _runningTasks.Values)
+        {
+            spectreTask.StopTask();
+        }
+        _done.Release();
+        _progressTask.GetAwaiter().GetResult();
     }
 
     public void Dispose()

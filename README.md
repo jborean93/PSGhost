@@ -15,6 +15,67 @@ These cmdlets have the following requirements
 
 * PowerShell v7.2 or newer
 
+## Examples
+
+Here are a few examples where PSGhost changes the implementation for certain host functions.
+The scripts used to test these scenarios can be found in [Examples](./Examples/).
+
+### Progress Records
+
+A progress record with a percentage on builtin looks like
+
+![Builtin Progress Percentage](https://s9.gifyu.com/images/prog-per-builtin.gif)
+
+_Note: The stray line at the top is an artifact of asciinema_
+
+This is `PSGhost`
+
+![PSGhost Progress Percentage](https://s9.gifyu.com/images/prog-per-psghost.gif)
+
+_Note: The bar and spinner are incorrectly generated in asciinema._
+
+A progress record may also not have an explicit percentage indicator but rather embed it in the status description.
+This is what this looks like on builtin
+
+![Builtin No Percentage](https://s9.gifyu.com/images/prog-builtin.gif)
+
+_Note: The stray line at the top is an artifact of asciinema_
+
+This is `PSGhost`
+
+![PSGhost No Percentage](https://s9.gifyu.com/images/prog-psghost.gif)
+
+_Note: The bar and spinner are incorrectly generated in asciinema._
+
+### Prompt For Choice
+
+Here is what `$host.UI.PromptForChoice` looks like today
+
+![Builtin Choice](https://s9.gifyu.com/images/choice-builtin.gif)
+
+This is `PSGhost`
+
+![PSGhost Choice](https://s9.gifyu.com/images/choice-psghost.gif)
+
+It is also possible to have a prompt for multiple choices, this is the builtin version
+
+![Builtin Choices](https://s9.gifyu.com/images/choices-builtin.gif)
+
+This is `PSGhost`
+
+![PSGhost Choices](https://s9.gifyu.com/images/choices-psghost.gif)
+
+### Confirm
+
+When `-Confirm` is used, it will bring up the choice dialog box.
+This is what it looks like in builtin
+
+![Builtin Confirm](https://s9.gifyu.com/images/confirm-builtin.gif)
+
+This is `PSGhost`
+
+![PSGhost Confirm](https://s9.gifyu.com/images/confirm-psghost.gif)
+
 ## Installing
 
 This module is meant to be a proof of concept and is not published to the PSGallery.
